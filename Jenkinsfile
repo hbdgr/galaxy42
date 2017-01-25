@@ -31,8 +31,18 @@ node('master') {
 
 	// git repository branch could be passed on jenkins build configuration as regular expresion, more info: Jenkins Git plugin
 	//def GIT_BRANCH = sh(returnStdout: true, script: 'git rev-parse --abbrev-ref HEAD').trim()
-	def GIT_BRANCH = "${env.BRANCH_NAME}"
-	println "BRANCH: [$GIT_BRANCH]"
+	if (env.BRANCH_NAME.startsWith("PR-")) {
+		println "Detect Pull Request ${env.BRANCH_NAME}"
+		def PRNumber = env.BRANCH_NAME.tokenize("PR-")[0]
+		//def gitURLcommand = 'git config --local remote.origin.url'
+		//gitURL = sh(returnStdout: true, script: gitURLcommand).trim()
+		println "PRNumber=$PRNumber"
+		def GIT_BRANCH = "origin/pr/${PRNumber}/head"
+
+	} else {
+		def GIT_BRANCH = "${env.BRANCH_NAME}"
+		println "BRANCH: [$GIT_BRANCH]"
+	}
 
 	def failure_counter=0
 
