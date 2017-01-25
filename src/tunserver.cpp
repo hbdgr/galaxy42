@@ -280,7 +280,9 @@ const c_routing_manager::c_route_info & c_routing_manager::get_route_or_maybe_se
 		const auto & peer = galaxy_node.get_peer_with_hip(dst,false); // no need for PK now, caller will do this on his own usually
 		_info("We have that peer directly: " << peer );
 		const int cost = 1; // direct peer. In future we can add connection cost or take into account congestion/lag...
-		c_route_info route_info( peer.get_hip() , cost , * peer.get_pub() );
+		const auto peer_pub_ptr = peer.get_pub();
+		if (!peer_pub_ptr) _throw_error( std::runtime_error("This peer has no pubkey yet.") );
+		c_route_info route_info( peer.get_hip() , cost , * peer_pub_ptr );
 		_info("Direct route: " << route_info);
 		const auto & route_info_ref_we_own = this -> add_route_info_and_return( dst , route_info ); // store it, so that we own this object
 		return route_info_ref_we_own; // <--- return direct
@@ -392,7 +394,7 @@ c_tunserver::c_tunserver(int port, int rpc_port)
 	,m_tun_header_offset_ipv6(0)
 	,m_rpc_server(rpc_port)
 	,m_port(port)
-	,m_supported_ip_protocols{TCP, UDP, IPv6_ICMP}
+	,m_supported_ip_protocols{eIPv6_TCP, eIPv6_UDP, eIPv6_ICMP}
 {
 	m_rpc_server.add_rpc_function("ping", [this](const std::string &input_json) {
 		return rpc_ping(input_json);
@@ -808,7 +810,7 @@ bool c_tunserver::route_tun_data_to_its_destination_top(t_route_method method,
 
 c_peering & c_tunserver::find_peer_by_sender_peering_addr( c_ip46_addr ip ) const {
 	std::lock_guard<std::mutex> lg(m_peer_mutex);
-	for(auto & v : m_peer) { if (v.second->get_pip() == ip) return * v.second.get(); }
+	for(auto & v : m_peer) { if ((v.second->get_pip() == ip) && (v.second->get_pip().get_assign_port() == ip.get_assign_port())) return * v.second.get(); }
 	_throw_error( std::runtime_error("We do not know a peer with such IP=" + STR(ip)) );
 }
 
@@ -1000,6 +1002,7 @@ void c_tunserver::event_loop(int time) {
 				auto & ct = * find_tunnel->second;
 				antinet_crypto::t_crypto_nonce nonce_used;
 
+				assert(size_read <= tun_read_buff.size() && size_read >= g_tuntap::header_position_of_ipv6);
 				std::string data_cleartext(reinterpret_cast<char *>(&tun_read_buff[g_tuntap::header_position_of_ipv6]), size_read - g_tuntap::header_position_of_ipv6);
 				// clear data == ipv6 packet
 				data_cleartext.erase(g_ipv6_rfc::header_position_of_dst, g_haship_addr_size); // remove dst addr from ipv6
@@ -1291,7 +1294,10 @@ void c_tunserver::event_loop(int time) {
 						auto peer_udp = dynamic_cast<c_peering_udp*>( sender_as_peering_ptr ); // upcast to UDP peer derived
 						peer_udp->send_data_udp_cmd(c_protocol::e_proto_cmd_findhip_reply, string_as_bin(data), m_udp_device.get_socket()); // <---
                         //sender_as_peering_ptr->get_stats().update_sent_stats(data.size());
-                        if ( m_peer.find(requested_hip) != m_peer.end() )
+						c_peering & sender_as_peering = find_peer_by_sender_peering_addr( sender_pip ); // warn: returned value depends on m_peer[], do not invalidate that!!!
+						_dbg1("send route response to " << sender_pip);
+						_dbg1("sender HIP " << sender_as_peering.get_hip());
+                        if ( m_peer.find(sender_as_peering.get_hip()) != m_peer.end() )
                             m_peer[requested_hip]->get_stats().update_sent_stats(data.size());
 						_note("Send the route reply");
 					} catch(...) {
@@ -1370,10 +1376,10 @@ void c_tunserver::event_loop(int time) {
 		}
 		catch (tuntap_error_devtun &e) {
 			_erro(e.what());
-			std::this_thread::sleep_for( std::chrono::milliseconds(10000) );
 			_warn("Trying restar tun/tap device ...");
-			std::this_thread::sleep_for( std::chrono::milliseconds(10000) );
-			prepare_socket();
+			try{
+				prepare_socket();
+			}catch(ui::exception_error_exit){}
 		}catch (std::exception &e) {
 			_warn("### !!! ### Parsing network data caused an exception: " << e.what());
 		}

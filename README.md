@@ -1,6 +1,6 @@
 [![Build Status](https://travis-ci.org/yedino/galaxy42.svg?branch=master)](https://travis-ci.org/yedino/galaxy42)
 [![Coverage Status](https://coveralls.io/repos/github/yedino/galaxy42/badge.svg?branch=master)](https://coveralls.io/github/yedino/galaxy42?branch=master)
-![Pre-pre-alpha](http://p.meshnet.pl/p/tgx.svg)
+![Pre-alpha](http://p.meshnet.pl/p/tgx.svg)
 [![IRC #antinet icann.irc.meshnet.pl](http://p.meshnet.pl/p/tgh.svg)](http://h.forum.meshnet.pl/viewtopic.php?f=14&p=144#p144)
 
 * * *
@@ -50,30 +50,64 @@ This program will allow to do **much more in future** (full public mesh, scoring
 For more details, including correct naming and **glossary**, and advanced technical topics **for developers** and "hackers", see also:
 [doc/hacking.md](doc/hacking.md).
 
-### Release notes
+## Release notes
 
-### Version v0.3.0
+### Version v0.3.1b (pre-alpha)
 
+* Important changes for all users:
+  * Fixed segfault (nullptr deref) when peered peer with wrong ipv6 (remote attack: crash)
+  * Basic firewall: packets other then UDP/TCP/ICMP are possibly dropped.
+  * Node2Node protocol format change (git-rev 456bf77dffd4),
+    * Therefore all nodes should update (older nodes are not supported),
+  * NAT traversal fixed: same external node can be used from hidden behind one NAT group of several nodes.
 * For users of official binary distribution:
-  * Connections seem encrypted, but are not yet authenticated correctly.
-  * You can not crossbuild / Gitian build for Mac OS X target, therefore we do not provide official Macintosh version yet. (bug#278)
-* For people building from source
-  * (Same remarks as for users)
-  * On Windows, building with MSVC compiler, the messages/languages will not work even if you provide .mo files correctly. (bug#J332)
-  * On Windows, you can try to build the .mo language files as in [doc/translation-instructions-cygwin.txt](doc/translation-instructions-cygwin.txt), or copy the .mo files from other platforms
+  * All users:
+    * Changed default RPC port to 9043 TCP.
+  * Windows users:
+    * Fixed crash (sometimes) after wake up from sleep.
+* For people building from source:
+  * Windows users:
+    * Read translation (.mo) files in program built in MSVC compiler.
+    * When running in Cmd.exe native console (instead of Cygwin) support nationalized characters (Unicode).
+    * The http-debug console should work on Windows now too (still probably disabled by default).
+  * Linux users:
+    * Fixed determinism of Gitian tar/gzip of linux build (perhaps it was not, even though the files inside were).
+  * Mac OS X users:
+    * Gitian for Mac OS X - produces deterministic binary. (Still TODO automatic generation of .dmg file itself).
+* Misc:
+  * Precompiled headers (with Cotire for CMake) for build speed (tested on Linux, MSVC).
+  * Using Jenkins to help with QA of Gitian.
+  * After Merry Christmas 2016 - we wish you also Happy New Year 2017; a bit late :P but still.
 
 Older release notes are in [Changelog.md](Changelog.md).
 
-=== Using pre-built binary ===
+## Using pre-built binary
 
-On windows: get the installer .exe, run it.
-The Program files/galaxy42/tunserver.elf.exe
+You can download the binary releases from:
+https://github.com/yedino/galaxy42-release/
+https://github.com/yedino/galaxy42-release/tree/master/tests-insecure
+search there for the version that you want to use.
 
-Program will be installed as service and will run on boot.
-+ disable the service. Run the installed .exe manually. It will work and you can specify --peer option ... as well as see own IP.
+Security: write down a checksum of the downloaded file if you care about security for verification in future,
+also check if other people confirm same checksum of binary files, and you can also confirm yourself
+that it matches given source code (see below - "Security of binary install").
 
-On macosx: currently not supporting this untill we resolve bug#J278
+* Using pre-built binary on **Windows**:
+you need to have TUN/TAP Driver installed first, e.g. get one from the OpenVPN project.
+* Get the installer .exe, run it.
+* Results:
+  * Program is in: Program files/galaxy42/tunserver.elf.exe
+  * Program will be installed as service and will run on boot.
+* You can start program manually e.g. to specify command-line options:
+  * Disable the system service of Galaxy42
+  * Run the installed .exe program manually. It will work and you can specify --peer option ... as well as see own virtual IPv6 there.
 
+* Using pre-built binary on **Linux**:
+* Get the installer .tar.gz and unpack it.
+* Start the program using the .sh script there for static version of program.
+
+* Using pre-built binary on **Mac OS X**:
+* Currently not supporting this (untill we resolve bug#J278).
 
 * * *
 
@@ -86,7 +120,23 @@ When you build program from source, check the file [SECURITY.txt] for list of de
 
 ### Security of binary install:
 
-Currently we do not yet offer binary install. But once we do, they will be properly signed by root of trust.
+We offer binary builds on web page:
+
+https://github.com/yedino/galaxy42-release/
+in future address will be also:
+https://download.yedino.com/
+
+The files there will be GPG signed, see below "Root of trust".
+
+Write down a checksum of the downloaded file if you care about security for verification in future:
+you can check if the files are GPG-signed by us (they always should be), and look around if other
+trusted people repeated our Gitian builds and can testify they have same resulting checksum.
+
+In addition you can "trust no one" and repeat the Gitian build now or in future and you will get identical checksum
+of resulting binary files.
+
+If you repeat the Gitian build in far future (when there were updates to relevant parts of the OS that we use inside Gitian),
+then you must somehow provide identical version of the packages, otherwise it could change the checksum.
 
 ### Security of binary auto-updates:
 
@@ -136,7 +186,7 @@ Advanced topics - for developers and for future.
 Galaxy42 - Small experimental network in category of Meshnet, VPN, IP-hash.
 
 Title: Galaxy42
-Status: Experimental, pre-beta, NOT reviewed, NOT secure.
+Status: Experimental, pre-alpha, NOT reviewed, NOT secure.
 
 Do not use this network for any purpose at all (yet!) it contains
 bugs, probably including vulns. Could be ok to try it in a VM.
