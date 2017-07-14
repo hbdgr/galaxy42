@@ -140,7 +140,7 @@ node('master') {
 
 	def should_run_unit_test = true
 	def should_run_integration_test = true
-	def should_run_memory_test = true
+	def should_run_memory_test = false
 	def should_run_thread_ub_test = true
 
 	def build_gitian_linux = false
